@@ -8,7 +8,6 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
-#include <std_msgs/msg/Float32.h>
 #include <std_msgs/msg/float32_multi_array.h>
 
 // node
@@ -18,13 +17,13 @@ rcl_allocator_t allocator;
 
 // publisher
 rcl_publisher_t publisher;
-std_msgs__msg__Float32 pub_msg;
+std_msgs__msg__Float32MultiArray pub_msg;
 rclc_executor_t executor_pub;
 rcl_timer_t ros_timer;
 
 // subscription
 rcl_subscription_t mt_sub1;
-std_msgs__msg__Float32MultiArray sub_msg;
+std_msgs__msg__Float32MultiArray *sub_msg;
 rclc_executor_t executor_sub;
 
 #define LED_PIN 13
@@ -81,16 +80,19 @@ float target_rad2;
 int pid_cnt = 0;
 int output_cnt = 0;
 float rad1;
+float rad2;
 // #########################
-void sub1_cb(const void *msgin)
-{
-  const std_msgs__msg__Float32 *sub_msg = (const std_msgs__msg__Float32MultiArray *)msgin;
-  driver1.updatePID_rad(sub_msg->data[0]);
-  driver2.updatePID_rad(sub_msg->data[1]);
-  target_rad1 = sub_msg->data[0];
-  target_rad2 = sub_msg->data[1];
-  
-  //driver1.update();
+void sub1_cb(const void *msgin) {
+  const std_msgs__msg__Float32MultiArray *sub_msg = (const std_msgs__msg__Float32MultiArray *)msgin;
+
+  // Update target speeds
+  target_rad1 = sub_msg->data.data[0];
+  target_rad2 = sub_msg->data.data[1];
+
+
+  // Additional processing or logging (optional)
+  // driver1.updatePID_rad(target_rad1);
+  // driver2.updatePID_rad(target_rad2);
 }
 void calOut()
 {
@@ -101,7 +103,8 @@ void calOut()
     if (readMsg.can_id == 0x201)
     {
       driver1.setCANData(&readMsg);
-    }else if (readMsg.can_id == 0x202)
+    }
+    if (readMsg.can_id == 0x202)
     {
       driver2.setCANData(&readMsg);
     }
@@ -121,6 +124,7 @@ void calOut()
   if (output_cnt >= 40)
   {
     rad1 = driver1.readRad_s();
+    rad2 = driver2.readRad_s();
     output_cnt = 0;
   }
 }
@@ -130,7 +134,8 @@ void timer_callback(rcl_timer_t *ros_timer, int64_t last_call_time)
   RCLC_UNUSED(last_call_time);
   if (ros_timer != NULL)
   {
-    pub_msg.data = rad1;
+    pub_msg.data.data[0] = rad1;
+    pub_msg.data.data[1] = rad2;
     RCSOFTCHECK(rcl_publish(&publisher, &pub_msg, NULL));
     // Serial.println(rad1);
   }
@@ -157,7 +162,7 @@ void setup()
   RCCHECK(rclc_publisher_init_default(
       &publisher,
       &node,
-      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
+      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
       "/C620/actual_rad1"));
 
   // create subscription
@@ -182,7 +187,11 @@ void setup()
   RCCHECK(rclc_executor_init(&executor_sub, &support.context, 1, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor_sub, &mt_sub1, &sub_msg, &sub1_cb, ON_NEW_DATA));
 
-  pub_msg.data = 0;
+  pub_msg.data.data = (float *)malloc(sizeof(float) * 2);
+  pub_msg.data.size = 2;
+  pub_msg.data.data[0] = 0;
+  pub_msg.data.data[1] = 0;
+
 
 
   sendMsg.can_id = 0x200;
