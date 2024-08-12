@@ -1,5 +1,4 @@
-
-
+#include <Arduino.h>
 #include <micro_ros_arduino.h>
 
 #include <stdio.h>
@@ -8,7 +7,7 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
-#include <std_msgs/msg/Float32.h>
+#include <std_msgs/msg/float32.h>
 #include <std_msgs/msg/float32_multi_array.h>
 
 // node
@@ -17,14 +16,16 @@ rclc_support_t support;
 rcl_allocator_t allocator;
 
 // publisher
-rcl_publisher_t publisher;
-std_msgs__msg__Float32 pub_msg;
+rcl_publisher_t mt_pub1;
+std_msgs__msg__Float32 pub_msg1;
 rclc_executor_t executor_pub;
-rcl_timer_t ros_timer;
+
 
 // subscription
 rcl_subscription_t mt_sub1;
+//std_msgs__msg__Float32 sub_msg;
 std_msgs__msg__Float32MultiArray sub_msg;
+#define ARRAY_LEN 2
 rclc_executor_t executor_sub;
 
 #define LED_PIN 13
@@ -80,15 +81,21 @@ int pid_cnt = 0;
 int output_cnt = 0;
 float rad1;
 // #########################
-void sub1_cb(const void *msgin)
-{
-  const std_msgs__msg__Float32 *sub_msg = (const std_msgs__msg__Float32MultiArray *)msgin;
-  driver1.updatePID_rad(sub_msg->data[0]);
-  
-  target_rad1 = sub_msg->data;
-  
-  // //driver1.update();
+void sub1_cb(const void *msgin){
+  const std_msgs__msg__Float32MultiArray * sub_msg = (const std_msgs__msg__Float32MultiArray *)msgin;
+  target_rad1 = sub_msg->data.data[0];
+  driver1.updatePID_rad(target_rad1);
+  pub_msg1.data = target_rad1;
+  rcl_publish(&mt_pub1, &pub_msg1, NULL);
 }
+
+// void sub1_cb(const void *msgin){
+//   const std_msgs__msg__Float32 * sub_msg = (const std_msgs__msg__Float32 *)msgin;
+//   target_rad1 = sub_msg->data;
+//   driver1.updatePID_rad(target_rad1);
+//   pub_msg1.data = target_rad1;
+//   rcl_publish(&mt_pub1, &pub_msg1, NULL);
+// }
 void calOut()
 {
   long start = micros();
@@ -116,19 +123,10 @@ void calOut()
   }
 }
 
-void timer_callback(rcl_timer_t *ros_timer, int64_t last_call_time)
-{
-  RCLC_UNUSED(last_call_time);
-  if (ros_timer != NULL)
-  {
-    pub_msg.data = rad1;
-    RCSOFTCHECK(rcl_publish(&publisher, &pub_msg, NULL));
-    // Serial.println(rad1);
-  }
-}
 
 void setup()
 {
+  Serial.begin(115200);
   set_microros_transports();
 
   pinMode(LED_PIN, OUTPUT);
@@ -146,7 +144,7 @@ void setup()
 
   // create publisher
   RCCHECK(rclc_publisher_init_default(
-      &publisher,
+      &mt_pub1,
       &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
       "/C620/actual_rad1"));
@@ -155,25 +153,22 @@ void setup()
   RCCHECK(rclc_subscription_init_default(
       &mt_sub1,
       &node,
-      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
+      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
       "/C620/target_rad1"));
 
-  // create timer,
-  const unsigned int timer_timeout = 1000;
-  RCCHECK(rclc_timer_init_default(
-      &ros_timer,
-      &support,
-      RCL_MS_TO_NS(timer_timeout),
-      timer_callback));
+ 
 
   // create executor
-  RCCHECK(rclc_executor_init(&executor_pub, &support.context, 1, &allocator));
-  RCCHECK(rclc_executor_add_timer(&executor_pub, &ros_timer));
-
   RCCHECK(rclc_executor_init(&executor_sub, &support.context, 1, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor_sub, &mt_sub1, &sub_msg, &sub1_cb, ON_NEW_DATA));
 
-  pub_msg.data = 0;
+  sub_msg.data.data = (float *)malloc(sizeof(float) * ARRAY_LEN);
+  sub_msg.data.size = 0;
+  sub_msg.data.capacity = ARRAY_LEN;
+
+  pub_msg1.data = 0.0;
+
+
 
 
   sendMsg.can_id = 0x200;
@@ -202,4 +197,6 @@ void loop()
   delay(100);
   RCSOFTCHECK(rclc_executor_spin_some(&executor_pub, RCL_MS_TO_NS(100)));
   RCSOFTCHECK(rclc_executor_spin_some(&executor_sub, RCL_MS_TO_NS(100)));
+  
+
 }
