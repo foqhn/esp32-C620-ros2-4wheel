@@ -98,6 +98,8 @@ void sub1_cb(const void *msgin)
   driver2.updatePID_rad(target_rad2);
   driver3.updatePID_rad(target_rad3);
   driver4.updatePID_rad(target_rad4);
+
+  //RPMフィードバックがここに来るのは本来避けたい　が、現状これ以外動作しない
   pub_msg1.data.size = ARRAY_LEN;
   pub_msg1.data.data[0] = rad1;
   pub_msg1.data.data[1] = rad2;
@@ -106,24 +108,7 @@ void sub1_cb(const void *msgin)
   RCSOFTCHECK(rcl_publish(&mt_pub1, &pub_msg1, NULL););
 }
 
-// void sub1_cb(const void *msgin){
-//   const std_msgs__msg__Float32 * sub_msg = (const std_msgs__msg__Float32 *)msgin;
-//   target_rad1 = sub_msg->data;
-//   driver1.updatePID_rad(target_rad1);
-//   pub_msg1.data = target_rad1;
-//   rcl_publish(&mt_pub1, &pub_msg1, NULL);
-// }
 
-// void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-// {
-//   RCLC_UNUSED(last_call_time);
-//   if (timer != NULL) {
-//     pub_msg1.data.size=ARRAY_LEN;
-//     pub_msg1.data.data[0] = rad1;
-//     pub_msg1.data.data[1] = rad2;
-//     RCSOFTCHECK(rcl_publish(&mt_pub1, &pub_msg1, NULL););
-//   }
-// }
 
 void calOut()
 {
@@ -168,6 +153,7 @@ void calOut()
     rad2 = driver2.readRad_s();
     rad3 = driver3.readRad_s();
     rad4 = driver4.readRad_s();
+    // HWタイマーの割り込み内に入れると、再起動ループに入る
     // pub_msg1.data.size=ARRAY_LEN;
     // pub_msg1.data.data[0] = rad1;
     // pub_msg1.data.data[1] = rad2;
@@ -202,6 +188,7 @@ void setup()
   // create node
   RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
 
+  //タイマーを使うと、ノードが起動しない
   // create ros timer
   // const unsigned int timer_timeout = 1000;
   // RCCHECK(rclc_timer_init_default(
