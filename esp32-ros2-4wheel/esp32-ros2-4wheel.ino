@@ -209,7 +209,7 @@ void setup()
       &mt_sub1,
       &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
-      "/C620/target_rad1"));
+      "/rover_targets"));
 
   // create executor
   RCCHECK(rclc_executor_init(&executor_sub, &support.context, 1, &allocator));

@@ -138,4 +138,27 @@ void loop() {
     target_rad4 = -1*str.substring(index+1).toFloat();
   }
 
+    // if(Serial.available()>0){
+    //     String input = Serial.readString();
+    //     float sum = 0;
+    //     int comma = 0;
+    //     for(int i=0; i<input.length(); i++){
+    //         if(input[i]==','){
+    //             comma++;
+    //         }
+    //     }
+    //     if(comma==3){
+    //         float f1 = input.substring(0, input.indexOf(',')).toFloat();
+    //         input = input.substring(input.indexOf(',')+1);
+    //         float f2 = input.substring(0, input.indexOf(',')).toFloat();
+    //         input = input.substring(input.indexOf(',')+1);
+    //         float f3 = input.substring(0, input.indexOf(',')).toFloat();
+    //         input = input.substring(input.indexOf(',')+1);
+    //         float f4 = input.toFloat();
+    //         target_rad1 = f1;
+    //         target_rad2 = f2;
+    //         target_rad3 = f3;
+    //         target_rad4 = f4;
+    //     }
+
 }
